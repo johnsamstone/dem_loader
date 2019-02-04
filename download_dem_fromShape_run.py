@@ -1,6 +1,6 @@
 from download_dem import *
 
-shapefilePath = 'full/file/path' #Your shape path here
+shapefilePath = '/Users/sjohnstone/Documents/Research/Projects/KTurner_ConejosSanJuans/DEMExtent.shp' #Your shape path here
 latlon = get_latlonPts_within_shape(shapefilePath)
 
 prefix = write_prefix_names(latlon)

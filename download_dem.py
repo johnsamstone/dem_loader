@@ -57,27 +57,37 @@ def build_file_paths(prefix, kind='.zip', resolution=13):
     return file_path_names
 
 
-def getFile(file_path_names):
+def getFile(file_path_names, confirmDownload = True, saveFolder = None):
     ''' Function used by retrieve_DEMS_ftp that logs into the ftp server
     and downloads the DEM tiles.
+    saveFolder: name of folder to save to, if none saves to cwd
     file_path_names: list of extended file path names in dictionary format.
     '''
+
+    if saveFolder is None:
+        savePath = file_path_names
+    else:
+        savePath = os.path.join(saveFolder,file_path_names)
+
     ftp = ftplib.FTP('rockyftp.cr.usgs.gov') # Root of USGS ftp NED server
     ftp.login()
     #print(ftp.getwelcome()) # Print welcome statement
     ftp.cwd('/vdelivery/Datasets/Staged/NED/13/IMG/')
-    #ftp.retrlines('LIST') # List files
+    # ftp.retrlines('LIST') # List files
 
     ftp.sendcmd("TYPE I")    # Switch to Binary mode
     size_matters = ftp.size(file_path_names)/1000000
     print('\n Your file ' + str(file_path_names) + ' is THIS big: ' + str(size_matters) + ' MegaBytes \n')
     ftp.sendcmd("TYPE A") # Switch back to ASCII mode
 
-    what_to_do = input('Do you want to download it? [y/n]: ' )
+    if confirmDownload:
+        what_to_do = input('Do you want to download it? [y/n]: ' )
+    else:
+        what_to_do = 'y'
 
     if what_to_do == 'y':
         print('Okay, this may take a while...')
-        file = open(file_path_names, 'wb')
+        file = open(savePath, 'wb')
         ftp.retrbinary('RETR %s' % file_path_names, file.write, 1024)
         file.close()
     elif what_to_do == 'n':
@@ -87,7 +97,7 @@ def getFile(file_path_names):
     
     ftp.quit()
 
-def retrieve_DEMS_ftp(file_path_names):
+def retrieve_DEMS_ftp(file_path_names,confirmDownloads = True, saveFolder = None):
     '''Function that retrieves the DEM tiles from the USGS ftp server.
     file_path_names: dictionay of all possible file path names.
     '''
@@ -96,7 +106,7 @@ def retrieve_DEMS_ftp(file_path_names):
     for path in file_path_names:
         for k, v in path.items():
             try:
-                getFile(v)
+                getFile(v,confirmDownloads,saveFolder)
 
             except ftplib.all_errors:
                 print('\n%s does not exist' % v)
@@ -127,6 +137,35 @@ def get_latlonPts_within_shape(shpPath):
 
     try:
         extent = lyr.GetExtent() #Get the bounding coordinates of the shapefile (min lon, max lon, min lat, max lat_
+    except:
+        print('Whoopsy, a problem with retrieving the extent of the layer - you sure this is a valid shapefile?')
+        return None
+
+    #Get the bounds
+    longBounds = extent[0:2]
+    latBounds = extent[2:]
+
+    #Quick and dirty check to make sure that this shape was in geographic coordinates
+    if any([(abs(lb)>180) for lb in longBounds]) or any([(abs(lb)>90) for lb in latBounds]):
+        print('Whoopsy, that file is either out of bounds or in the wrong coordinate system. Please use a geographic projection.')
+        return None
+    else:
+        return _getGridsInBounds(latBounds,longBounds)
+
+def get_latlonPts_within_feature(ogrFeature):
+    '''
+    Given a shape file, finds all the lat long coordinates of the upper left corners of the 1/3 arc second DEMs contained
+    within the extent of those shapes
+
+    :param shpPath: a file path to a shapefile
+    :return: latlons, a list of lat,lon tuple pairs to feed to 'write_prefix_names'.
+    '''
+
+
+
+    try:
+        geom = ogrFeature.GetGeometryRef() #Get the bounding coordinates of the shapefile (min lon, max lon, min lat, max lat_
+        extent = geom.GetEnvelope()
     except:
         print('Whoopsy, a problem with retrieving the extent of the layer - you sure this is a valid shapefile?')
         return None
