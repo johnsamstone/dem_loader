@@ -34,14 +34,14 @@ for ftr in lyr:
 
     print('Working on ' + quadName)
 
+    latlon = get_latlonPts_within_feature(ftr)
+
     #create the path to the directory to save data
     savePath = os.path.join(saveFolder,quadName)
 
     if not os.path.isdir(savePath):
         #create a folder with the same name as the quad
         os.mkdir(savePath)
-
-    latlon = get_latlonPts_within_feature(ftr)
 
     prefix = write_prefix_names(latlon)
     file_path_names = build_file_paths(prefix, kind='.zip')
@@ -58,5 +58,5 @@ for ftr in lyr:
             zip_ref.extractall(newdir)
 
         os.remove(file)
-
+#
 src = None
